@@ -1,6 +1,6 @@
 {
     "name": "llqhz/wechat",
-    "description": "\u001b[A\u001b[A\u001b[A\u001b[B\u001b[B\u001b[B\u001b[D\u001b[this is a wechat library for wechat web and wechat app\u001b[D\u001b[D\u001b[D\u001b[D small app \u001b[2~development",
+    "description": "this is a wechat library for wechat web and wechat small app development",
     "type": "library",
     "license": "MIT",
     "authors": [
