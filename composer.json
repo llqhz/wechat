@@ -9,6 +9,6 @@
             "email": "llqhz@qq.com"
         }
     ],
-    "minimum-stability": "dev",
+    "minimum-stability": "stable",
     "require": {}
 }
