@@ -1,0 +1,14 @@
+{
+    "name": "llqhz/wechat",
+    "description": "\u001b[A\u001b[A\u001b[A\u001b[B\u001b[B\u001b[B\u001b[D\u001b[this is a wechat library for wechat web and wechat app\u001b[D\u001b[D\u001b[D\u001b[D small app \u001b[2~development",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "llqhz",
+            "email": "llqhz@qq.com"
+        }
+    ],
+    "minimum-stability": "dev",
+    "require": {}
+}
