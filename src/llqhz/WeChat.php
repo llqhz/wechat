@@ -1,41 +1,45 @@
 <?php
+
 namespace Wx;
-//require LL_TP_PATH.'/../yirenhuan/api/wxapi.class.php';
 /**
  * 测试号接口的类
  */
-class WeChat{
+class Wechat{
 
         // 开发者中心-配置项-AppID(应用ID)
-    private $appId = 'wx920c21a3e3142fba';
+    private $appId = ''; // 网创科技
         // 开发者中心-配置项-AppSecret(应用密钥)
-    private $appSecret = '8d961c6f669d3d2fa641143a49529da4';   //公众号
+    private $appSecret = '';    // 网创科技
         // 开发者中心-配置项-服务器配置-Token(令牌)
-    private $token = 'weixin';
+    private $token = '';
         // 开发者中心-配置项-服务器配置-EncodingAESKey(消息加解密密钥)
-    private $wechatId = 'gh_753a8bb95ba1';    //微信号
-    //private $encodingAESKey = 'f8zmBqAhNT8egZ2Z9WziFtTpoQP2p1NX1FFApHhzBqN';
+    private $encodingAESKey = '';
+        // 开发者中心-微信号
+    private $wechatId = '';    // 网创科技
 
     private $msg = [];
 
 
-    public function __construct($appid='',$appsecret='')
+    public function __construct($appId='',$appSecret='',$options=[])
     {
         // 这是使用了file来保存access_token
-        //定义应用前缀
-
+        // 定义应用前缀
         if ( !empty($appid) ) {
-            $this->appId = C('APP_ID') ?: $appid;
+            $this->appId = $appId;
+            $this->appSecret = $appSecret;
         }
-        if ( !empty($appsecret) ) {
-            $this->appSecret = C('APP_SECRET') ?: $appsecret;
+        if ( is_array($options) && (!empty($options)) ) {
+            $this->token = $options['token'] ?: '';
+            $this->encodingAESKey = $options['encodingAESKey'] ?: '';
+            $this->wechatId = $options['wechatId'] ?: '';
         }
-        S(array(
-            'type'=>'file',
-            'prefix'=> 'wx_com_'.$this->appId,
-            'expire'=>7200
-        ));
-        //$this->wx = new \WxApi();
+
+        cache([
+            'type'=>'File',
+            'prefix'=> 'wx_com_',
+            'expire'=>7200,
+            'path' => CACHE_PATH
+        ]);
     }
 
     /**
@@ -64,7 +68,6 @@ class WeChat{
     private function checkSignature()
     {
         //排序,连接,加密
-
         $token = $this->token;
         $signature = $_GET["signature"];
         $timestamp = $_GET["timestamp"];
@@ -86,20 +89,18 @@ class WeChat{
     public function obj2arr($obj)
     {
         $arr = get_object_vars($obj);
-
         foreach ($arr as $key => $val) {
             if ( is_object($val) ) {
                 $arr[$key] = $this->obj2arr($val);
             }
         }
-
         return $arr;
     }
 
 
     /**
      * 获取微信msg对象
-     * @return [type] [description]
+     * @return array Msg
      */
     public function getMsg()
     {
@@ -124,9 +125,8 @@ class WeChat{
         }
 
         if (!empty($xml_input)) {
-            //2.解析微信xml,得到msg对象
-            // XML解析微信消息体
-            libxml_disable_entity_loader(true);
+            //2.解析微信xml,得到msg对象微信消息体
+            libxml_disable_entity_loader(true); // 安全过滤,禁止引入外部实体
             $xml_obj = simplexml_load_string($xml_input, 'SimpleXMLElement', LIBXML_NOCDATA);
 
             //保存当前15秒内处理的消息到队列,每次事件在队列中对比以决定是否处理
@@ -136,11 +136,11 @@ class WeChat{
                 return $this->Msg = $arr;
             } else {
                 //如有重复
-                echo "";
+                echo "success";
                 exit;
             }
         } else {
-            echo "";
+            echo "error";
             exit;
         }
     }
@@ -154,7 +154,7 @@ class WeChat{
     {
         if ( isset($msg['MsgId']) ) {
             //  array( [MsgId,time] )
-            $msg_queue = S('wx_msg_queue');
+            $msg_queue =cache('wx_msg_queue');
             // 第一次,创建新队列
             if ( !is_array($msg_queue) ) {
                 $msg_queue = [];
@@ -173,10 +173,10 @@ class WeChat{
             if ( $res == true ) {
                 $msg_queue[] = [ 'MsgId'=>$msg['MsgId'],'time'=>time()];
             }
-            S('wx_msg_queue',$msg_queue);
+            cache('wx_msg_queue',$msg_queue);
             return $res;
         } else {
-            $event_queue = S('wx_event_queue');
+            $event_queue = cache('wx_event_queue');
             $checkStr = $msg['FromUserName'].$msg['CreateTime'];
 
             // 第一次创建新队列
@@ -198,11 +198,9 @@ class WeChat{
             if ( $res == true ) {
                 $event_queue[] = $checkStr;
             }
-            S('wx_event_queue',$event_queue);
+            cache('wx_event_queue',$event_queue);
             return $res;
         }
-
-
     }
 
 
@@ -387,8 +385,6 @@ class WeChat{
                 $data['Voice'] = array('MediaId'=>$content);
                 break;
 
-
-
             /**
              * $content = array(
              *      'MediaId' => '',
@@ -406,7 +402,7 @@ class WeChat{
         }
         $xml = arrayToXml($data);
         echo $xml;
-        S('xml',$xml);
+        cache('xml',$xml);
         exit();
     }
 
@@ -415,47 +411,21 @@ class WeChat{
      * @param  boolen $refresh 是否刷新
      * @return access_token
      */
-    public function getWxToken( $refresh=false ){
-        $token = S('token');
+    public function getToken( $refresh=false ){
+        $token =cache('token');
         if ( ($token == false) || ($refresh == true) ) {
              $url = "https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=".$this->appId."&secret=".$this->appSecret;
 
-             $data = httpCurl($url);
+             $data = $this->httpCurl($url);
              $token = $data['access_token'];
-             S('token',$token,7200);
+             cache('token',$token,7200);
              return $token;
         }
 
         //验证token有效性
         $status = $this->checkToken($token);
         if ( $status === false ) {
-            return $this->getWXToken(true);
-        } else {
-            return $token;
-        }
-    }
-
-    /**
-     * 获取微信全局access_token
-     * @param  boolen $refresh 是否刷新
-     * @return access_token
-     */
-    public function getToken( $refresh=false ){
-        if ( $refresh === true ) {
-            return $this->getWxToken(true);
-        } else {
-            $url = 'http://sjss.mall.dwh027.com/web/index.php?c=account&a=auth&do=llwx&key=access_token';
-            $res = httpCurl($url);
-            if ( $res && ( $res['code'] == 1 ) ) {
-                $token = $res['access_token'];
-            } else {
-                $token = $this->getWxToken();
-            }
-        }
-        //验证token有效性
-        $status = $this->checkToken($token);
-        if ( $status === false ) {
-            return $this->getWxToken();
+            return $this->getToken(true);
         } else {
             return $token;
         }
@@ -505,7 +475,7 @@ class WeChat{
     {
         $access_token = $this->getToken();
         $url = "https://api.weixin.qq.com/cgi-bin/getcallbackip?access_token=".$access_token;
-        $data = httpCurl($url);
+        $data = $this->httpCurl($url);
         return $data['ip_list'];
     }
 
@@ -516,7 +486,7 @@ class WeChat{
     public function checkToken($token)
     {
         $url = "https://api.weixin.qq.com/cgi-bin/getcallbackip?access_token=".$token;
-        $data = httpCurl($url);
+        $data = $this->httpCurl($url,'get','arr');
 
         if ( $data['errcode'] == 40014 || $data['errcode'] == 40001 ) { //access_token过期
             return false;
@@ -530,9 +500,9 @@ class WeChat{
      * @param  boolen $refresh 是否刷新
      * @return [type] [description]
      */
-    public function getWxTicket( $refresh=false )
+    public function getTicket( $refresh=false )
     {
-        $ticket = S('ticket');
+        $ticket = cache('ticket');
 
         /*如果ticket过期或者强制刷新*/
         if ( (!$ticket) || $refresh == true ) {
@@ -541,29 +511,14 @@ class WeChat{
 
             //2 用token换取 ticket
             $url = "https://api.weixin.qq.com/cgi-bin/ticket/getticket?access_token=".$token."&type=jsapi";
-            $data = httpCurl($url);
+            $data = $this->httpCurl($url);
 
             //3 缓存ticket
             $ticket = $data['ticket'];
-            S('ticket',$ticket,7200);
+           cache('ticket',$ticket,7200);
         }
 
         return $ticket;
-    }
-
-    public function getTicket( $refresh=false )
-    {
-        if ( $refresh === true ) {
-            return $this->getWxTicket($refresh);
-        }
-
-        $url = 'http://sjss.mall.dwh027.com/web/index.php?c=account&a=auth&do=llwx&key=jsapi_ticket';
-        $res = httpCurl($url);
-
-        if ( $res && ($res['code'] == 1) ) {
-            return $res['jsapi_ticket'];
-        }
-        return $this->getWxTicket($refresh);
     }
 
     /**
@@ -753,7 +708,7 @@ class WeChat{
         }
     }
 
-    public function authGetCodeUrl($state='')
+    public function authGetCodeUrl($state='info')
     {
         $location = 'http://'.$_SERVER['HTTP_HOST'].$_SERVER['REQUEST_URI'];
 
@@ -774,9 +729,7 @@ class WeChat{
             $code = $opt['code'];
             //使用code换取oauth2的授权access_token
             $url_token = "https://api.weixin.qq.com/sns/oauth2/access_token?appid=".$this->appId."&secret=".$this->appSecret."&code=".$code."&grant_type=authorization_code";
-
             $tokens = httpCurl($url_token,'get','arr');
-
             $token = $tokens['access_token'];
             $openid = $tokens['openid'];
             $refresh_token = $tokens['refresh_token'];
@@ -786,7 +739,6 @@ class WeChat{
         if ( isset($opt['refresh_token']) ) {   // 存在refresh_token
             $refresh_token = $opt['refresh_token'];
             $refresh_url = "https://api.weixin.qq.com/sns/oauth2/refresh_token?appid=".$this->appId."&grant_type=refresh_token&refresh_token=".$refresh_token;
-
             $tokens = httpCurl($refresh_url,'get','arr');
             $token = $tokens['access_token'];
             if ( empty($token) ) {
@@ -815,10 +767,8 @@ class WeChat{
         if ( empty($code) ) {
             return false;
         }
-
         $url = 'https://api.weixin.qq.com/sns/oauth2/access_token?appid='.$this->appId.'&secret='.$this->appSecret.'&code='.$code.'&grant_type=authorization_code';
-        $arr = httpCurl($url);
-
+        $arr = httpCurl($url,'get','arr');
         $openid = $arr['openid'];
         if ( empty($openid) ) {
             return false;
@@ -1759,7 +1709,6 @@ class WeChat{
     {
 
         $wechat = new WeChat();
-
         $token = $wechat->getToken();
 
         $url = "https://api.weixin.qq.com/card/code/decrypt?access_token={$token}";
